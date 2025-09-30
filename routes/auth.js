@@ -10,17 +10,41 @@ const router = express.Router();
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, confirmPassword } = req.body;
 
+    // Check required fields
+    if (!name || !email || !password || !confirmPassword) {
+      return res.status(400).json({ error: 'Please fill all fields' });
+    }
+
+    // Confirm password check
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match' });
+    }
+
+    // Check if user already exists
     const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ error: 'User already exists' });
+    if (existing) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
 
+    // Hash password and save
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({ name, email, password: hashedPassword });
     await user.save();
 
-    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET);
-    res.json({ userId: user._id, token });
+    // Create JWT
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      userId: user._id,
+      token,
+      userDetails: { id: user._id, name: user.name, email: user.email, role: user.role }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
