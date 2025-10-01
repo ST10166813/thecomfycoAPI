@@ -30,7 +30,7 @@ router.post('/register', async (req, res) => {
 
     // Hash password and save
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ name, email, password: hashedPassword });
+   const user = new User({ name, email, password: hashedPassword, role: 'user' });
     await user.save();
 
     // Create JWT
