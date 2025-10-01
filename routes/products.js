@@ -1,4 +1,5 @@
 const express = require('express');
+const multer = require('multer');
 const Product = require('../models/Product');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
 
@@ -17,16 +18,40 @@ router.get('/:id', async (req, res) => {
   res.json(product);
 });
 
-// Create product (admin only)
-router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
+// Configure multer storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // folder in your project root
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const upload = multer({ storage });
+
+// Create product (admin only, with image upload)
+router.post('/', authMiddleware, adminMiddleware, upload.single('image'), async (req, res) => {
   try {
-    const product = new Product(req.body);
+    const { name, description, price, stock } = req.body;
+    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+    const product = new Product({
+      name,
+      description,
+      price,
+      stock,
+      images: imageUrl ? [imageUrl] : []
+    });
+
     await product.save();
     res.status(201).json(product);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
+
+module.exports = router;
+
 
 // Update product (admin only)
 router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
