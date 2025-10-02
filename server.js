@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+const path = require('path');
 require('dotenv').config();
 
 const User = require('./models/User'); // ✅ import User model
@@ -20,6 +21,9 @@ app.get('/', (req, res) => res.send('🛋️ TheComfyCo API is running!'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/protected', require('./routes/protected'));
 app.use('/api/products', require('./routes/products'));
+
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ✅ Seed admin function
 async function seedAdmin() {

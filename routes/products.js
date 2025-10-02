@@ -30,41 +30,54 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Create product (admin only, with image upload)
-router.post('/', authMiddleware, adminMiddleware, upload.single('image'), async (req, res) => {
-  try {
-    const { name, description, price, stock, variants } = req.body; // Add variants
+router.post(
+  '/',
+  authMiddleware,
+  adminMiddleware,
+  upload.single('image'),
+  async (req, res) => {
+    try {
+      let { name, description, price, stock, variants } = req.body;
 
-    // Parse the JSON string sent from Android
-    let parsedVariants = [];
-    if (variants) {
-      try {
-        parsedVariants = JSON.parse(variants);
-      } catch (e) {
-        console.error("Failed to parse variants JSON:", e);
-        return res.status(400).json({ error: 'Invalid variants format' });
+      // Parse variants if string
+      let parsedVariants = [];
+      if (variants) {
+        try {
+          parsedVariants = JSON.parse(variants);
+        } catch (e) {
+          console.error("❌ Failed to parse variants JSON:", e);
+          return res.status(400).json({ error: 'Invalid variants format' });
+        }
       }
+
+      // Ensure numeric values
+      const priceNum = Number(price);
+      const stockNum = Number(stock);
+
+      if (isNaN(priceNum) || isNaN(stockNum)) {
+        return res.status(400).json({ error: "Price and stock must be numbers" });
+      }
+
+      // Image
+      const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+      const product = new Product({
+        name,
+        description,
+        price: priceNum,
+        stock: stockNum,
+        variants: parsedVariants,
+        images: imageUrl ? [imageUrl] : []
+      });
+
+      await product.save();
+      res.status(201).json(product);
+    } catch (err) {
+      console.error("❌ Error in createProduct:", err);
+      res.status(500).json({ error: "Server error while creating product" });
     }
-
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-
-    const product = new Product({
-      name,
-      description,
-      price,
-      stock,
-      variants: parsedVariants, // Use the parsed object
-      images: imageUrl ? [imageUrl] : []
-    });
-
-    await product.save();
-    res.status(201).json(product);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
   }
-});
-
-module.exports = router;
-
+);
 
 // Update product (admin only)
 router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
