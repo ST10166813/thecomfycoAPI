@@ -32,7 +32,19 @@ const upload = multer({ storage });
 // Create product (admin only, with image upload)
 router.post('/', authMiddleware, adminMiddleware, upload.single('image'), async (req, res) => {
   try {
-    const { name, description, price, stock } = req.body;
+    const { name, description, price, stock, variants } = req.body; // Add variants
+
+    // Parse the JSON string sent from Android
+    let parsedVariants = [];
+    if (variants) {
+      try {
+        parsedVariants = JSON.parse(variants);
+      } catch (e) {
+        console.error("Failed to parse variants JSON:", e);
+        return res.status(400).json({ error: 'Invalid variants format' });
+      }
+    }
+
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
     const product = new Product({
@@ -40,6 +52,7 @@ router.post('/', authMiddleware, adminMiddleware, upload.single('image'), async 
       description,
       price,
       stock,
+      variants: parsedVariants, // Use the parsed object
       images: imageUrl ? [imageUrl] : []
     });
 
