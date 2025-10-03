@@ -44,10 +44,11 @@ router.post(
       if (variants) {
         try {
           parsedVariants = JSON.parse(variants);
-        } catch (e) {
-          console.error("❌ Failed to parse variants JSON:", e);
-          return res.status(400).json({ error: 'Invalid variants format' });
-        }
+} catch (err) {
+  console.error("❌ Create product error:", err);
+  res.status(500).json({ error: err.message });
+}
+
       }
 
       // Ensure numeric values
