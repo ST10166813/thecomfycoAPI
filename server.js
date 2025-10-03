@@ -5,12 +5,12 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 require('dotenv').config();
 
-app.use('/uploads', express.static('uploads'));
-
 const User = require('./models/User'); // ✅ import User model
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+app.use('/uploads', express.static('uploads'));
 
 // Middleware
 app.use(cors());
@@ -23,7 +23,7 @@ app.get('/', (req, res) => res.send('🛋️ TheComfyCo API is running!'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/protected', require('./routes/protected'));
 app.use('/api/products', require('./routes/products'));
-
+ 
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
