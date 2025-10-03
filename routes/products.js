@@ -21,14 +21,12 @@ router.get('/:id', async (req, res) => {
 
 // Configure multer storage
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // 🔑 FIX: Use an absolute path. Assumes 'products.js' is in 'routes/' 
-    // and 'uploads' is in the project root.
-    cb(null, path.join(__dirname, '..', 'uploads')); 
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // folder in your project root
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
 });
 const upload = multer({ storage });
 
@@ -61,10 +59,10 @@ router.post(
       if (isNaN(priceNum) || isNaN(stockNum)) {
         return res.status(400).json({ error: "Price and stock must be numbers" });
       }
-// 🔑 FIX: Store only the path relative to the server root (e.g., /uploads/123.png)
-const imageUrl = req.file ? `/uploads/${req.file.filename}` : null; 
 
-
+      // Image
+     const imageUrl = req.file? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+  : null;
 
       const product = new Product({
         name,
