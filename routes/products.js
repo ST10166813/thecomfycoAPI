@@ -21,10 +21,11 @@ router.get('/:id', async (req, res) => {
 
 // Configure multer storage
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // folder in your project root
-  },
-  filename: (req, file, cb) => {
+  destination: (req, file, cb) => {
+    // 🔑 FIX: Use absolute path. Assumes 'products.js' is in 'routes/' 
+    cb(null, path.join(__dirname, '..', 'uploads')); 
+  },
+  filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + file.originalname);
   }
 });
@@ -41,16 +42,20 @@ router.post(
       let { name, description, price, stock, variants } = req.body;
 
       // Parse variants if string
-      let parsedVariants = [];
-      if (variants) {
-        try {
-          parsedVariants = JSON.parse(variants);
+     // ...
+      // Parse variants if string
+      let parsedVariants = [];
+      if (variants) {
+        try {
+          parsedVariants = JSON.parse(variants);
 } catch (err) {
-  console.error("❌ Create product error:", err);
-  res.status(500).json({ error: err.message });
+  console.error("❌ Invalid JSON format for variants:", err);
+  // 🔑 FIX: MUST return here to stop execution
+  return res.status(400).json({ error: "Invalid JSON format for variants." }); 
 }
 
-      }
+      }
+// ...
 
       // Ensure numeric values
       const priceNum = Number(price);
@@ -61,8 +66,7 @@ router.post(
       }
 
       // Image
-     const imageUrl = req.file? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
-  : null;
+ const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
       const product = new Product({
         name,
