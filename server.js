@@ -5,6 +5,8 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 require('dotenv').config();
 
+app.use('/uploads', express.static('uploads'));
+
 const User = require('./models/User'); // ✅ import User model
 
 const app = express();

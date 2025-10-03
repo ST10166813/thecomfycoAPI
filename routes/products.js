@@ -60,7 +60,8 @@ router.post(
       }
 
       // Image
-      const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+     const imageUrl = req.file? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+  : null;
 
       const product = new Product({
         name,
