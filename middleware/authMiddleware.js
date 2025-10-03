@@ -13,11 +13,16 @@ function authMiddleware(req, res, next) {
   }
 }
 
-function adminMiddleware(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin only' });
-  }
-  next();
-}
+const adminMiddleware = (req, res, next) => {
+    // Assuming authMiddleware has already set req.user
+    if (req.user && req.user.role === 'admin') {
+        next(); // User is admin, proceed
+    } else {
+        // 🔑 FIX: Explicitly return JSON 403 (Forbidden)
+        return res.status(403).json({ error: 'Access forbidden: Admin required.' });
+    }
+};
+
+module.exports = adminMiddleware;
 
 module.exports = { authMiddleware, adminMiddleware };
