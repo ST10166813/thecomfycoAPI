@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const Product = require('../models/Product');
 const path = require('path');
+const fs = require('fs');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -22,12 +23,15 @@ router.get('/:id', async (req, res) => {
 // Configure multer storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // 🔑 FIX: Use absolute path. Assumes 'products.js' is in 'routes/' 
-    cb(null, path.join(__dirname, '..', 'uploads')); 
+    const uploadPath = path.join(__dirname, '..', 'uploads');
+    
+    // Check if the directory exists, if not, create it synchronously
+    if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    
+    cb(null, uploadPath); 
   },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
 });
 const upload = multer({ storage });
 
