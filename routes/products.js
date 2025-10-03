@@ -22,7 +22,8 @@ router.get('/:id', async (req, res) => {
 // Configure multer storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // 🔑 FIX: Use absolute path (assumes 'uploads' is in the project root)
+    // 🔑 FIX: Use an absolute path. Assumes 'products.js' is in 'routes/' 
+    // and 'uploads' is in the project root.
     cb(null, path.join(__dirname, '..', 'uploads')); 
   },
   filename: (req, file, cb) => {
