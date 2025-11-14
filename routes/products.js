@@ -7,40 +7,49 @@ const { authMiddleware, adminMiddleware } = require('../middleware/authMiddlewar
 
 const router = express.Router();
 
-// Fetch all products
+/* -------------------------
+   GET ALL PRODUCTS
+-------------------------- */
 router.get('/', async (req, res) => {
   const products = await Product.find();
   res.json(products);
 });
 
-// Fetch a single product by ID
+/* -------------------------
+   GET SINGLE PRODUCT
+-------------------------- */
 router.get('/:id', async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) return res.status(404).json({ error: 'Product not found' });
   res.json(product);
 });
 
-// Multer setup for image uploads
+/* -------------------------
+   MULTER STORAGE FIX
+   (Saves images permanently in /uploads)
+-------------------------- */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '..', 'uploads');
+    const uploadPath = path.join(process.cwd(), 'uploads'); // Always root-level uploads
 
-    // Create uploads folder if it doesn't exist
+    // Create folder if missing
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
 
     cb(null, uploadPath);
   },
+
   filename: (req, file, cb) => {
-    // Generate a unique name (timestamp + original file extension)
-    cb(null, Date.now() + path.extname(file.originalname));
+    cb(null, Date.now() + path.extname(file.originalname)); // unique filename
   }
 });
 
 const upload = multer({ storage });
 
-// Add a new product (admin only)
+/* -------------------------
+   ADD NEW PRODUCT (ADMIN ONLY)
+-------------------------- */
 router.post(
   '/',
   authMiddleware,
@@ -50,26 +59,24 @@ router.post(
     try {
       let { name, description, price, stock, variants } = req.body;
 
-      // Convert variant data from string to array if needed
+      // Parse variants safely
       let parsedVariants = [];
       if (variants) {
         try {
           parsedVariants = JSON.parse(variants);
         } catch (err) {
-          console.error("Invalid JSON for variants:", err);
-          return res.status(400).json({ error: "Invalid JSON format for variants." });
+          return res.status(400).json({ error: "Invalid JSON format for variants" });
         }
       }
 
-      // Ensure price and stock are numbers
+      // Convert price/stock
       const priceNum = Number(price);
       const stockNum = Number(stock);
 
       if (isNaN(priceNum) || isNaN(stockNum)) {
-        return res.status(400).json({ error: "Price and stock must be numbers" });
+        return res.status(400).json({ error: "Price and stock must be valid numbers" });
       }
 
-      // Handle uploaded image
       const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
       const product = new Product({
@@ -83,6 +90,7 @@ router.post(
 
       await product.save();
       res.status(201).json(product);
+
     } catch (err) {
       console.error("Error creating product:", err);
       res.status(500).json({ error: "Server error while creating product" });
@@ -90,18 +98,61 @@ router.post(
   }
 );
 
-// Update product details (admin only)
-router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
-  const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  if (!product) return res.status(404).json({ error: 'Product not found' });
-  res.json(product);
-});
+/* -------------------------
+   UPDATE PRODUCT (ADMIN ONLY)
+-------------------------- */
+router.put('/:id',
+  authMiddleware,
+  adminMiddleware,
+  upload.single('image'),
+  async (req, res) => {
+    try {
+      let updates = { ...req.body };
 
-// Remove a product (admin only)
-router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
-  const product = await Product.findByIdAndDelete(req.params.id);
-  if (!product) return res.status(404).json({ error: 'Product not found' });
-  res.json({ message: 'Product deleted' });
-});
+      // If variants come in string JSON – parse them
+      if (updates.variants) {
+        try {
+          updates.variants = JSON.parse(updates.variants);
+        } catch {
+          return res.status(400).json({ error: "Invalid JSON for variants" });
+        }
+      }
+
+      // New uploaded image?
+      if (req.file) {
+        updates.images = [`/uploads/${req.file.filename}`];
+      }
+
+      const product = await Product.findByIdAndUpdate(req.params.id, updates, { new: true });
+
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+
+      res.json(product);
+
+    } catch (err) {
+      res.status(500).json({ error: "Error updating product" });
+    }
+  }
+);
+
+/* -------------------------
+   DELETE PRODUCT (ADMIN ONLY)
+-------------------------- */
+router.delete('/:id',
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const product = await Product.findByIdAndDelete(req.params.id);
+
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+
+      res.json({ message: 'Product deleted' });
+
+    } catch (err) {
+      res.status(500).json({ error: "Server error while deleting product" });
+    }
+  }
+);
 
 module.exports = router;

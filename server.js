@@ -14,19 +14,18 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from the uploads directory
-// Example: /uploads/filename.jpg
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files from uploads folder
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-// Root route
+// Default route
 app.get('/', (req, res) => res.send('🛋️ TheComfyCo API is running!'));
 
-// Route handlers
+// Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/protected', require('./routes/protected'));
 app.use('/api/products', require('./routes/products'));
 
-// Create an admin account if it doesn't exist
+// Create admin if missing
 async function seedAdmin() {
   try {
     const existingAdmin = await User.findOne({ role: 'admin' });
@@ -41,19 +40,18 @@ async function seedAdmin() {
       });
       console.log("Admin account created: admin@thecomfyco.com");
     } else {
-      console.log("ℹAdmin already exists, skipping seeding.");
+      console.log("ℹ Admin already exists.");
     }
   } catch (err) {
     console.error("Failed to seed admin:", err.message);
   }
 }
 
-// Connect to MongoDB and start the server
+// Start server
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
 
-    // Run admin seeding
     await seedAdmin();
 
     app.listen(PORT, "0.0.0.0", () => {
