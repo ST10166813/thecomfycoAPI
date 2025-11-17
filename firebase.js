@@ -1,9 +1,9 @@
-const admin = require("firebase-admin");
+const admin = require('firebase-admin');
 
-// Parse the JSON string from the env
+// Parse JSON from env
 const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SDK_JSON);
 
-// Replace the escaped \n with real newlines
+// Convert escaped \n to real newlines
 serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
 
 // Initialize Firebase Admin
