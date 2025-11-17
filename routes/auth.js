@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { OAuth2Client } = require('google-auth-library');
+const nodemailer = require('nodemailer');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const router = express.Router();
@@ -124,6 +125,7 @@ router.post('/logout', (req, res) => {
 });
 
 // FORGOT PASSWORD
+
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
@@ -137,7 +139,25 @@ router.post('/forgot-password', async (req, res) => {
     user.resetCodeExpiry = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    console.log("OTP:", otp);
+    // -----------------------------
+    // Send OTP via email
+    // -----------------------------
+    let transporter = nodemailer.createTransport({
+      host: "smtp.example.com", // e.g., smtp.gmail.com
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER, // your email
+        pass: process.env.EMAIL_PASS  // your email password or app password
+      }
+    });
+
+    await transporter.sendMail({
+      from: `"The Comfy Co" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Password Reset Code",
+      text: `Your password reset code is ${otp}. It expires in 10 minutes.`,
+    });
 
     res.json({ message: "Reset code sent to email" });
 
