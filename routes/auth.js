@@ -140,23 +140,25 @@ router.post('/logout', (req, res) => {
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
-
         const user = await User.findOne({ email });
         if (!user) return res.status(400).json({ error: "Email not found" });
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetCode = otp;
-        user.resetCodeExpiry = Date.now() + 10 * 60 * 1000; // 10 mins
+        user.resetCodeExpiry = Date.now() + 10 * 60 * 1000;
         await user.save();
 
+        console.log("Sending OTP:", otp, "to:", email);
+
         await transporter.sendMail({
-            from: `"The Comfy Co" <${process.env.SMTP_USER}>`,
+            from: process.env.EMAIL_FROM,
             to: email,
             subject: "Password Reset Code",
             text: `Your password reset code is ${otp}. It expires in 10 minutes.`,
             html: `<p>Your password reset code is <b>${otp}</b>. It expires in 10 minutes.</p>`
         });
 
+        console.log("OTP email sent successfully");
         res.json({ message: "Reset code sent to email" });
 
     } catch (err) {
@@ -165,13 +167,17 @@ router.post('/forgot-password', async (req, res) => {
     }
 });
 
+
 // ----------------- RESET PASSWORD -----------------
 router.post('/reset-password', async (req, res) => {
     try {
         const { email, code, newPassword } = req.body;
-
         const user = await User.findOne({ email });
         if (!user) return res.status(400).json({ error: "Email not found" });
+
+        console.log("Reset request:", { email, code, newPassword });
+        console.log("Stored code:", user.resetCode);
+        console.log("Expiry:", new Date(user.resetCodeExpiry).toLocaleString());
 
         if (user.resetCode !== code) return res.status(400).json({ error: "Invalid code" });
         if (Date.now() > user.resetCodeExpiry) return res.status(400).json({ error: "Code expired" });
@@ -180,14 +186,15 @@ router.post('/reset-password', async (req, res) => {
         user.password = hashed;
         user.resetCode = null;
         user.resetCodeExpiry = null;
-
         await user.save();
 
         res.json({ message: "Password updated successfully" });
 
     } catch (err) {
+        console.error("Reset password error:", err);
         res.status(500).json({ error: err.message });
     }
 });
+
 
 module.exports = router;
