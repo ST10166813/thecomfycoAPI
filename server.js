@@ -7,6 +7,8 @@ require('dotenv').config();
 
 const User = require('./models/User');
 const adminTokenRoutes = require('./routes/adminToken');
+const notificationsRoute = require('./routes/notifications');
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,6 +28,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/protected', require('./routes/protected'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/admin', adminTokenRoutes);
+app.use('/api', notificationsRoute);
 
 // Create admin if missing
 async function seedAdmin() {
