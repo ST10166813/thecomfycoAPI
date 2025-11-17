@@ -3,21 +3,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { OAuth2Client } = require('google-auth-library');
-const nodemailer = require('nodemailer');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const router = express.Router();
-
-// ----------------- Nodemailer transporter -----------------
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,           // e.g., smtp.gmail.com
-    port: Number(process.env.SMTP_PORT),   // 587 for TLS, 465 for SSL
-    secure: Number(process.env.SMTP_PORT) === 465, // true for 465, false for 587
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS       // Gmail App Password
-    }
-});
 
 // ----------------- REGISTER -----------------
 router.post('/register', async (req, res) => {
@@ -136,37 +124,29 @@ router.post('/logout', (req, res) => {
     res.json({ message: 'Logged out (client should delete token)' });
 });
 
-// ----------------- FORGOT PASSWORD -----------------
+// ----------------- FORGOT PASSWORD (IN-APP) -----------------
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
         const user = await User.findOne({ email });
         if (!user) return res.status(400).json({ error: "Email not found" });
 
+        // Generate 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetCode = otp;
-        user.resetCodeExpiry = Date.now() + 10 * 60 * 1000;
+        user.resetCodeExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
         await user.save();
 
-        console.log("Sending OTP:", otp, "to:", email);
+        console.log("Generated OTP:", otp);
 
-        await transporter.sendMail({
-            from: process.env.EMAIL_FROM,
-            to: email,
-            subject: "Password Reset Code",
-            text: `Your password reset code is ${otp}. It expires in 10 minutes.`,
-            html: `<p>Your password reset code is <b>${otp}</b>. It expires in 10 minutes.</p>`
-        });
-
-        console.log("OTP email sent successfully");
-        res.json({ message: "Reset code sent to email" });
+        // Return OTP in response for app usage
+        res.json({ message: "Reset code generated", code: otp });
 
     } catch (err) {
         console.error("Forgot password error:", err);
-        res.status(500).json({ error: "Unable to send reset email. Check server logs." });
+        res.status(500).json({ error: "Unable to generate reset code." });
     }
 });
-
 
 // ----------------- RESET PASSWORD -----------------
 router.post('/reset-password', async (req, res) => {
@@ -175,9 +155,8 @@ router.post('/reset-password', async (req, res) => {
         const user = await User.findOne({ email });
         if (!user) return res.status(400).json({ error: "Email not found" });
 
-        console.log("Reset request:", { email, code, newPassword });
-        console.log("Stored code:", user.resetCode);
-        console.log("Expiry:", new Date(user.resetCodeExpiry).toLocaleString());
+        console.log("Reset request:", { email, code });
+        console.log("Stored code:", user.resetCode, "Expiry:", new Date(user.resetCodeExpiry).toLocaleString());
 
         if (user.resetCode !== code) return res.status(400).json({ error: "Invalid code" });
         if (Date.now() > user.resetCodeExpiry) return res.status(400).json({ error: "Code expired" });
@@ -195,6 +174,5 @@ router.post('/reset-password', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
 
 module.exports = router;
