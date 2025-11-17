@@ -6,6 +6,7 @@ const path = require('path');
 require('dotenv').config();
 
 const User = require('./models/User');
+const adminTokenRoutes = require('./routes/adminToken');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,6 +25,7 @@ app.get('/', (req, res) => res.send('🛋️ TheComfyCo API is running!'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/protected', require('./routes/protected'));
 app.use('/api/products', require('./routes/products'));
+app.use('/api/admin', adminTokenRoutes);
 
 // Create admin if missing
 async function seedAdmin() {
