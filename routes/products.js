@@ -4,7 +4,7 @@ const Product = require('../models/Product');
 const path = require('path');
 const fs = require('fs');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
-const admin = require('../firebase'); // Firebase Admin SDK
+const admin = require('../src/firebase'); // Firebase Admin SDK
 const AdminToken = require('../models/AdminToken'); // Stores admin device tokens
 
 const router = express.Router();

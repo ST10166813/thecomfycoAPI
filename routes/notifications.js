@@ -1,5 +1,5 @@
 const express = require('express');
-const admin = require('../firebase'); // Firebase initialized
+const admin = require('../src/firebase'); // Firebase initialized
 const AdminToken = require('../models/AdminToken');
 
 const router = express.Router();
