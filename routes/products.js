@@ -4,7 +4,7 @@ const Product = require('../models/Product');
 const path = require('path');
 const fs = require('fs');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
-const admin = require('../src/firebase'); 
+const admin = require('../src/firebase');
 const AdminToken = require('../models/AdminToken');
 
 const router = express.Router();
@@ -181,6 +181,28 @@ router.put(
     } catch (err) {
       console.error("Update error:", err);
       res.status(500).json({ error: "Error updating product" });
+    }
+  }
+);
+
+/* ======================================================
+   DELETE PRODUCT 
+====================================================== */
+router.delete(
+  '/:id',
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const product = await Product.findByIdAndDelete(req.params.id);
+
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+
+      res.json({ message: "Product deleted successfully" });
+
+    } catch (err) {
+      console.error("Delete error:", err);
+      res.status(500).json({ error: "Error deleting product" });
     }
   }
 );
