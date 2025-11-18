@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
 const admin = require('../src/firebase'); // Firebase Admin SDK
-const AdminToken = require('../models/AdminToken'); // Stores admin device tokens
+const AdminToken = require('../models/AdminToken');
 
 const router = express.Router();
 
@@ -21,13 +21,17 @@ router.get('/', async (req, res) => {
    GET SINGLE PRODUCT
 -------------------------- */
 router.get('/:id', async (req, res) => {
-  const product = await Product.findById(req.params.id);
-  if (!product) return res.status(404).json({ error: 'Product not found' });
-  res.json(product);
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    res.json(product);
+  } catch {
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 /* -------------------------
-   MULTER STORAGE FIX
+   MULTER STORAGE CONFIG
 -------------------------- */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -41,8 +45,8 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 /* -------------------------
-   ADD NEW PRODUCT (ADMIN ONLY)
-   🔔 Sends push notification to all admins
+   ADD NEW PRODUCT
+   🔔 Safe Firebase push handling
 -------------------------- */
 router.post(
   '/',
@@ -51,43 +55,67 @@ router.post(
   upload.single('image'),
   async (req, res) => {
     try {
+
+      /* -------------------------
+         VALIDATE PRODUCT INPUT
+      -------------------------- */
       let { name, description, price, stock, variants } = req.body;
 
       let parsedVariants = [];
       if (variants) {
-        try { parsedVariants = JSON.parse(variants); } 
-        catch (err) { return res.status(400).json({ error: "Invalid JSON format for variants" }); }
+        try {
+          parsedVariants = JSON.parse(variants);
+        } catch {
+          return res.status(400).json({ error: "Invalid JSON format for variants" });
+        }
       }
 
       const priceNum = Number(price);
       const stockNum = Number(stock);
-      if (isNaN(priceNum) || isNaN(stockNum)) return res.status(400).json({ error: "Price and stock must be valid numbers" });
+      if (isNaN(priceNum) || isNaN(stockNum))
+        return res.status(400).json({ error: "Price and stock must be valid numbers" });
 
       const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
+      /* -------------------------
+         SAVE PRODUCT
+      -------------------------- */
       const product = new Product({
-        name, description, price: priceNum, stock: stockNum, variants: parsedVariants,
+        name,
+        description,
+        price: priceNum,
+        stock: stockNum,
+        variants: parsedVariants,
         images: imageUrl ? [imageUrl] : []
       });
 
       await product.save();
 
-      // 🔔 Notify all admin devices
-      const tokens = await AdminToken.find().distinct('token');
-      if (tokens.length > 0) {
-        const message = {
-          notification: {
-            title: 'New Product Added',
-            body: `Product "${product.name}" has been added!`
-          },
-          tokens
-        };
-        admin.messaging().sendMulticast(message)
-          .then(resp => console.log(`Notification sent to ${resp.successCount} admins`))
-          .catch(err => console.error('FCM error:', err));
+      /* -------------------------
+         SAFE PUSH NOTIFICATION
+      -------------------------- */
+      try {
+        const tokens = await AdminToken.find().distinct('token');
+
+        if (tokens.length > 0) {
+          const message = {
+            notification: {
+              title: 'New Product Added',
+              body: `Product "${product.name}" has been added!`
+            },
+            tokens
+          };
+
+          admin.messaging().sendMulticast(message)
+            .then(resp => console.log(`Notification sent to ${resp.successCount} admins`))
+            .catch(err => console.error("FCM sendMulticast error:", err));
+        }
+
+      } catch (notifErr) {
+        console.error("Notification error (ignored):", notifErr);
       }
 
-      res.status(201).json(product);
+      return res.status(201).json(product);
 
     } catch (err) {
       console.error("Error creating product:", err);
@@ -97,10 +125,11 @@ router.post(
 );
 
 /* -------------------------
-   UPDATE PRODUCT (ADMIN ONLY)
-   🔔 Sends low stock notification if stock <= 5
+   UPDATE PRODUCT
+   🔔 Safe Low Stock Notification
 -------------------------- */
-router.put('/:id',
+router.put(
+  '/:id',
   authMiddleware,
   adminMiddleware,
   upload.single('image'),
@@ -109,43 +138,63 @@ router.put('/:id',
       let updates = { ...req.body };
 
       if (updates.variants) {
-        try { updates.variants = JSON.parse(updates.variants); } 
-        catch { return res.status(400).json({ error: "Invalid JSON for variants" }); }
+        try {
+          updates.variants = JSON.parse(updates.variants);
+        } catch {
+          return res.status(400).json({ error: "Invalid JSON for variants" });
+        }
       }
 
-      if (req.file) updates.images = [`/uploads/${req.file.filename}`];
+      if (req.file) {
+        updates.images = [`/uploads/${req.file.filename}`];
+      }
 
-      const product = await Product.findByIdAndUpdate(req.params.id, updates, { new: true });
+      const product = await Product.findByIdAndUpdate(
+        req.params.id,
+        updates,
+        { new: true }
+      );
       if (!product) return res.status(404).json({ error: 'Product not found' });
 
-      // 🔔 Low stock check
-      const LOW_STOCK_THRESHOLD = 5;
-      if (product.stock <= LOW_STOCK_THRESHOLD) {
-        const tokens = await AdminToken.find().distinct('token');
-        if (tokens.length > 0) {
-          const message = {
-            notification: {
-              title: 'Low Stock Alert',
-              body: `Stock for "${product.name}" is low (${product.stock})!`
-            },
-            tokens
-          };
-          admin.messaging().sendMulticast(message)
-            .then(resp => console.log(`Low stock notification sent to ${resp.successCount} admins`))
-            .catch(err => console.error('FCM error:', err));
+      /* -------------------------
+         SAFE LOW-STOCK NOTIFICATION
+      -------------------------- */
+      try {
+        const LOW_STOCK_THRESHOLD = 5;
+
+        if (product.stock <= LOW_STOCK_THRESHOLD) {
+          const tokens = await AdminToken.find().distinct('token');
+
+          if (tokens.length > 0) {
+            const message = {
+              notification: {
+                title: 'Low Stock Alert',
+                body: `Stock for "${product.name}" is low (${product.stock})!`
+              },
+              tokens
+            };
+
+            admin.messaging().sendMulticast(message)
+              .then(resp => console.log(`Low stock notification sent to ${resp.successCount} admins`))
+              .catch(err => console.error("FCM low stock error:", err));
+          }
         }
+
+      } catch (lowErr) {
+        console.error("Low stock notification error:", lowErr);
       }
 
       res.json(product);
 
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: "Error updating product" });
     }
   }
 );
 
 /* -------------------------
-   DELETE PRODUCT (ADMIN ONLY)
+   DELETE PRODUCT
 -------------------------- */
 router.delete('/:id',
   authMiddleware,
@@ -154,6 +203,7 @@ router.delete('/:id',
     try {
       const product = await Product.findByIdAndDelete(req.params.id);
       if (!product) return res.status(404).json({ error: 'Product not found' });
+
       res.json({ message: 'Product deleted' });
     } catch (err) {
       res.status(500).json({ error: "Server error while deleting product" });
