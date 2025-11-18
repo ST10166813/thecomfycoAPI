@@ -84,37 +84,31 @@ router.post(
 
       await product.save();
 
-      // ------------------ SEND PUSH NOTIFICATION ------------------
-      try {
-        const tokens = await AdminToken.find().distinct('token');
+      /* ------------------ SEND PUSH NOTIFICATION ------------------ */
+try {
+  const tokens = await AdminToken.find().distinct('token');
 
-        if (tokens.length > 0) {
-          const message = {
-            notification: {
-              title: 'New Product Added',
-              body: `Product "${product.name}" has been added!`
-            },
-            tokens
-          };
+  if (tokens.length > 0) {
 
-          const response = await admin.messaging().sendMulticast(message);
-          console.log(`Notification sent to ${response.successCount} admins`);
-        } else {
-          console.log("No admin tokens found.");
+    const response = await admin.messaging().sendEach(
+      tokens.map(token => ({
+        token,
+        notification: {
+          title: 'New Product Added',
+          body: `Product "${product.name}" has been added!`
         }
+      }))
+    );
 
-      } catch (notifErr) {
-        console.error("Notification error (ignored):", notifErr);
-      }
-
-      return res.status(201).json(product);
-
-    } catch (err) {
-      console.error("Error creating product:", err);
-      res.status(500).json({ error: "Server error while creating product" });
-    }
+    console.log(`Notification sent to ${response.successCount} admins`);
+  } else {
+    console.log("No admin tokens found.");
   }
-);
+
+} catch (notifErr) {
+  console.error("Notification error (ignored):", notifErr);
+}
+
 
 /* ======================================================
    UPDATE PRODUCT + LOW STOCK WARNING
@@ -163,7 +157,16 @@ router.put(
               tokens
             };
 
-            const response = await admin.messaging().sendMulticast(message);
+          const response = await admin.messaging().sendEach(
+  tokens.map(token => ({
+    token,
+    notification: {
+      title: 'Low Stock Alert',
+      body: `Stock for "${product.name}" is low (${product.stock})!`
+    }
+  }))
+);
+
             console.log(`Low stock notifications sent: ${response.successCount}`);
           } else {
             console.log("No admin tokens found for low stock alert.");
