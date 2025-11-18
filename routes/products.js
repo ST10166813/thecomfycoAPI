@@ -106,7 +106,7 @@ router.post(
             tokens
           };
 
-          admin.messaging().sendMulticast(message)
+          await admin.messaging().sendEachForMulticast(message)
             .then(resp => console.log(`Notification sent to ${resp.successCount} admins`))
             .catch(err => console.error("FCM sendMulticast error:", err));
         }
