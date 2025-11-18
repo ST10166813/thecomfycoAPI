@@ -85,30 +85,37 @@ router.post(
       await product.save();
 
       /* ------------------ SEND PUSH NOTIFICATION ------------------ */
-try {
-  const tokens = await AdminToken.find().distinct('token');
+      try {
+        const tokens = await AdminToken.find().distinct('token');
 
-  if (tokens.length > 0) {
+        if (tokens.length > 0) {
+          const response = await admin.messaging().sendEach(
+            tokens.map(token => ({
+              token,
+              notification: {
+                title: 'New Product Added',
+                body: `Product "${product.name}" has been added!`
+              }
+            }))
+          );
 
-    const response = await admin.messaging().sendEach(
-      tokens.map(token => ({
-        token,
-        notification: {
-          title: 'New Product Added',
-          body: `Product "${product.name}" has been added!`
+          console.log(`Notification sent to ${response.successCount} admins`);
+        } else {
+          console.log("No admin tokens found.");
         }
-      }))
-    );
 
-    console.log(`Notification sent to ${response.successCount} admins`);
-  } else {
-    console.log("No admin tokens found.");
+      } catch (notifErr) {
+        console.error("Notification error (ignored):", notifErr);
+      }
+
+      res.json(product);
+
+    } catch (err) {
+      console.error("Product creation error:", err);
+      res.status(500).json({ error: "Error creating product" });
+    }
   }
-
-} catch (notifErr) {
-  console.error("Notification error (ignored):", notifErr);
-}
-
+);
 
 /* ======================================================
    UPDATE PRODUCT + LOW STOCK WARNING
@@ -139,6 +146,7 @@ router.put(
         updates,
         { new: true }
       );
+
       if (!product) return res.status(404).json({ error: 'Product not found' });
 
       // ------------------ LOW STOCK PUSH NOTIFICATION ------------------
@@ -149,23 +157,15 @@ router.put(
           const tokens = await AdminToken.find().distinct('token');
 
           if (tokens.length > 0) {
-            const message = {
-              notification: {
-                title: 'Low Stock Alert',
-                body: `Stock for "${product.name}" is low (${product.stock})!`
-              },
-              tokens
-            };
-
-          const response = await admin.messaging().sendEach(
-  tokens.map(token => ({
-    token,
-    notification: {
-      title: 'Low Stock Alert',
-      body: `Stock for "${product.name}" is low (${product.stock})!`
-    }
-  }))
-);
+            const response = await admin.messaging().sendEach(
+              tokens.map(token => ({
+                token,
+                notification: {
+                  title: 'Low Stock Alert',
+                  body: `Stock for "${product.name}" is low (${product.stock})!`
+                }
+              }))
+            );
 
             console.log(`Low stock notifications sent: ${response.successCount}`);
           } else {
