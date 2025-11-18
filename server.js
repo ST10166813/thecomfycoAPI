@@ -30,6 +30,8 @@ app.use('/api/protected', require('./routes/protected'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/admin', adminTokenRoutes);
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/cart', require('./routes/cart'));
+app.use('/api/payment', require('./routes/payment'));
 
 // Create admin if missing
 async function seedAdmin() {
