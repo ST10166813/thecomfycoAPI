@@ -4,8 +4,6 @@ const Product = require('../models/Product');
 const path = require('path');
 const fs = require('fs');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
-const admin = require('../src/firebase'); 
-const AdminToken = require('../models/AdminToken');
 
 const router = express.Router();
 
@@ -45,7 +43,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 /* ======================================================
-   ADD NEW PRODUCT + PUSH NOTIFICATION
+   ADD NEW PRODUCT
 ====================================================== */
 router.post(
   '/',
@@ -84,27 +82,6 @@ router.post(
 
       await product.save();
 
-      // PUSH NOTIFICATION
-      try {
-        const tokens = await AdminToken.find().distinct('token');
-
-        if (tokens.length > 0) {
-          const response = await admin.messaging().sendEach(
-            tokens.map(token => ({
-              token,
-              notification: {
-                title: 'New Product Added',
-                body: `Product "${product.name}" has been added!`
-              }
-            }))
-          );
-
-          console.log(`Notification sent to ${response.successCount} admins`);
-        }
-      } catch (notifErr) {
-        console.error("Notification error:", notifErr);
-      }
-
       res.json(product);
 
     } catch (err) {
@@ -115,7 +92,7 @@ router.post(
 );
 
 /* ======================================================
-   UPDATE PRODUCT + LOW STOCK WARNING
+   UPDATE PRODUCT
 ====================================================== */
 router.put(
   '/:id',
@@ -145,31 +122,6 @@ router.put(
       );
 
       if (!product) return res.status(404).json({ error: 'Product not found' });
-
-      // LOW STOCK WARNING
-      try {
-        const LOW_STOCK_THRESHOLD = 5;
-
-        if (product.stock <= LOW_STOCK_THRESHOLD) {
-          const tokens = await AdminToken.find().distinct('token');
-
-          if (tokens.length > 0) {
-            const response = await admin.messaging().sendEach(
-              tokens.map(token => ({
-                token,
-                notification: {
-                  title: 'Low Stock Alert',
-                  body: `Stock for "${product.name}" is low (${product.stock})!`
-                }
-              }))
-            );
-
-            console.log(`Low stock notifications sent: ${response.successCount}`);
-          }
-        }
-      } catch (lowErr) {
-        console.error("Low stock notification error:", lowErr);
-      }
 
       res.json(product);
 
