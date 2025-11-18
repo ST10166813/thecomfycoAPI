@@ -4,22 +4,22 @@ const Product = require('../models/Product');
 const path = require('path');
 const fs = require('fs');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
-const admin = require('../src/firebase'); // Firebase Admin SDK
+const admin = require('../src/firebase'); 
 const AdminToken = require('../models/AdminToken');
 
 const router = express.Router();
 
-/* -------------------------
+/* ======================================================
    GET ALL PRODUCTS
--------------------------- */
+====================================================== */
 router.get('/', async (req, res) => {
   const products = await Product.find();
   res.json(products);
 });
 
-/* -------------------------
+/* ======================================================
    GET SINGLE PRODUCT
--------------------------- */
+====================================================== */
 router.get('/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -30,9 +30,9 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-/* -------------------------
-   MULTER STORAGE CONFIG
--------------------------- */
+/* ======================================================
+   MULTER IMAGE STORAGE
+====================================================== */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(process.cwd(), 'uploads');
@@ -44,10 +44,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-/* -------------------------
-   ADD NEW PRODUCT
-   🔔 Safe Firebase push handling
--------------------------- */
+/* ======================================================
+   ADD NEW PRODUCT + PUSH NOTIFICATION
+====================================================== */
 router.post(
   '/',
   authMiddleware,
@@ -55,10 +54,6 @@ router.post(
   upload.single('image'),
   async (req, res) => {
     try {
-
-      /* -------------------------
-         VALIDATE PRODUCT INPUT
-      -------------------------- */
       let { name, description, price, stock, variants } = req.body;
 
       let parsedVariants = [];
@@ -72,14 +67,12 @@ router.post(
 
       const priceNum = Number(price);
       const stockNum = Number(stock);
+
       if (isNaN(priceNum) || isNaN(stockNum))
         return res.status(400).json({ error: "Price and stock must be valid numbers" });
 
       const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
-      /* -------------------------
-         SAVE PRODUCT
-      -------------------------- */
       const product = new Product({
         name,
         description,
@@ -91,9 +84,7 @@ router.post(
 
       await product.save();
 
-      /* -------------------------
-         SAFE PUSH NOTIFICATION
-      -------------------------- */
+      /* ------------------ SEND PUSH NOTIFICATION ------------------ */
       try {
         const tokens = await AdminToken.find().distinct('token');
 
@@ -106,9 +97,10 @@ router.post(
             tokens
           };
 
-          await admin.messaging().sendEachForMulticast(message)
-            .then(resp => console.log(`Notification sent to ${resp.successCount} admins`))
-            .catch(err => console.error("FCM sendMulticast error:", err));
+          const response = await admin.messaging().sendEachForMulticast(message);
+          console.log(`Notification sent to ${response.successCount} admins`);
+        } else {
+          console.log("No admin tokens found.");
         }
 
       } catch (notifErr) {
@@ -124,10 +116,9 @@ router.post(
   }
 );
 
-/* -------------------------
-   UPDATE PRODUCT
-   🔔 Safe Low Stock Notification
--------------------------- */
+/* ======================================================
+   UPDATE PRODUCT + LOW STOCK WARNING
+====================================================== */
 router.put(
   '/:id',
   authMiddleware,
@@ -156,9 +147,7 @@ router.put(
       );
       if (!product) return res.status(404).json({ error: 'Product not found' });
 
-      /* -------------------------
-         SAFE LOW-STOCK NOTIFICATION
-      -------------------------- */
+      /* ------------------ LOW STOCK PUSH NOTIFICATION ------------------ */
       try {
         const LOW_STOCK_THRESHOLD = 5;
 
@@ -174,12 +163,10 @@ router.put(
               tokens
             };
 
-            admin.messaging().sendMulticast(message)
-              .then(resp => console.log(`Low stock notification sent to ${resp.successCount} admins`))
-              .catch(err => console.error("FCM low stock error:", err));
+            const response = await admin.messaging().sendEachForMulticast(message);
+            console.log(`Low stock notifications sent: ${response.successCount}`);
           }
         }
-
       } catch (lowErr) {
         console.error("Low stock notification error:", lowErr);
       }
@@ -187,15 +174,15 @@ router.put(
       res.json(product);
 
     } catch (err) {
-      console.error(err);
+      console.error("Update error:", err);
       res.status(500).json({ error: "Error updating product" });
     }
   }
 );
 
-/* -------------------------
+/* ======================================================
    DELETE PRODUCT
--------------------------- */
+====================================================== */
 router.delete('/:id',
   authMiddleware,
   adminMiddleware,
