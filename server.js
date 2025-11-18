@@ -8,7 +8,7 @@ require('dotenv').config();
 const User = require('./models/User');
 const adminTokenRoutes = require('./routes/adminToken');
 const notificationsRoute = require('./routes/notifications');
-const adminProductsRouter = require('./routes/adminProducts'); // adjust path
+
 
 
 
@@ -32,7 +32,7 @@ app.use('/api/protected', require('./routes/protected'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/admin', adminTokenRoutes);
 app.use('/api', notificationsRoute);
-app.use('/api/admin/products', adminProductsRouter);
+
 
 
 // Create admin if missing
