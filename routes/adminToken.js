@@ -1,30 +1,26 @@
-// routes/adminToken.js
 const express = require('express');
 const router = express.Router();
 const AdminToken = require('../models/AdminToken');
-const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware'); // destructured import
+const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
 
-// Route: Register an admin device token
-// Protected: Only accessible to authenticated admins
 router.post('/register-token', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const { token } = req.body;
 
         if (!token) {
-            return res.status(400).json({ error: 'Token is required' });
+            return res.status(400).json({ error: "Token required" });
         }
 
-        // Save or update the token for the current admin
         await AdminToken.updateOne(
-            { userId: req.user.userId }, // comes from authMiddleware
+            { userId: req.user.userId },
             { token },
-            { upsert: true } // Insert if it doesn't exist
+            { upsert: true }
         );
 
-        res.json({ message: 'Token registered successfully' });
+        res.json({ message: "Admin token saved" });
     } catch (err) {
-        console.error('Error in /register-token:', err);
-        res.status(500).json({ error: 'Server error' });
+        console.error("Token Register Error:", err);
+        res.status(500).json({ error: "Server error" });
     }
 });
 

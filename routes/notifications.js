@@ -1,28 +1,46 @@
 const express = require('express');
-const admin = require('../src/firebase'); // Firebase initialized
+const router = express.Router();
+const admin = require('../src/firebase');
 const AdminToken = require('../models/AdminToken');
 
-const router = express.Router();
-
+// Send notifications to ALL admins
 router.post('/send-notification', async (req, res) => {
-  const { userId, title, body } = req.body;
+    try {
+        const { title, body } = req.body;
 
-  try {
-    const user = await AdminToken.findOne({ userId });
-    if (!user || !user.token) {
-      return res.status(404).json({ error: "User token not found" });
+        if (!title || !body) {
+            return res.status(400).json({ error: "Title and body required" });
+        }
+
+        // Fetch all admin tokens
+        const admins = await AdminToken.find({});
+        const tokens = admins.map(a => a.token);
+
+        console.log("📌 Tokens found:", tokens);
+
+        if (tokens.length === 0) {
+            return res.status(200).json({ success: false, message: "No admin tokens found" });
+        }
+
+        // Firebase v11+ uses sendEachForDevices()
+        const message = {
+            tokens,
+            notification: { title, body }
+        };
+
+        const response = await admin.messaging().sendEachForMulticast(message);
+
+        console.log("📨 Notification Response:", response);
+
+        res.json({
+            success: true,
+            sent: response.successCount,
+            failed: response.failureCount
+        });
+    } catch (err) {
+        console.error("Notification error:", err);
+        res.status(500).json({ error: err.message });
     }
-
-    await admin.messaging().send({
-      token: user.token,
-      notification: { title, body }
-    });
-
-    res.json({ success: true, message: "Notification sent" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
 });
 
 module.exports = router;
