@@ -4,14 +4,14 @@ const Product = require('../models/Product');
 const path = require('path');
 const fs = require('fs');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
-const admin = require('../src/firebase');
+const admin = require('../src/firebase'); 
 const AdminToken = require('../models/AdminToken');
 
 const router = express.Router();
 
-/* ======================================================
+/*======================================================
    GET ALL PRODUCTS
-====================================================== */
+======================================================*/
 router.get('/', async (req, res) => {
   const products = await Product.find();
   res.json(products);
@@ -84,7 +84,7 @@ router.post(
 
       await product.save();
 
-      /* ------------------ SEND PUSH NOTIFICATION ------------------ */
+      // PUSH NOTIFICATION
       try {
         const tokens = await AdminToken.find().distinct('token');
 
@@ -100,12 +100,9 @@ router.post(
           );
 
           console.log(`Notification sent to ${response.successCount} admins`);
-        } else {
-          console.log("No admin tokens found.");
         }
-
       } catch (notifErr) {
-        console.error("Notification error (ignored):", notifErr);
+        console.error("Notification error:", notifErr);
       }
 
       res.json(product);
@@ -149,7 +146,7 @@ router.put(
 
       if (!product) return res.status(404).json({ error: 'Product not found' });
 
-      // ------------------ LOW STOCK PUSH NOTIFICATION ------------------
+      // LOW STOCK WARNING
       try {
         const LOW_STOCK_THRESHOLD = 5;
 
@@ -168,8 +165,6 @@ router.put(
             );
 
             console.log(`Low stock notifications sent: ${response.successCount}`);
-          } else {
-            console.log("No admin tokens found for low stock alert.");
           }
         }
       } catch (lowErr) {
@@ -186,7 +181,7 @@ router.put(
 );
 
 /* ======================================================
-   DELETE PRODUCT 
+   DELETE PRODUCT
 ====================================================== */
 router.delete(
   '/:id',
@@ -196,7 +191,15 @@ router.delete(
     try {
       const product = await Product.findByIdAndDelete(req.params.id);
 
-      if (!product) return res.status(404).json({ error: 'Product not found' });
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Delete product images
+      product.images.forEach(img => {
+        const filePath = path.join(process.cwd(), img);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      });
 
       res.json({ message: "Product deleted successfully" });
 
