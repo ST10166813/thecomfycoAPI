@@ -84,7 +84,7 @@ router.post(
 
       await product.save();
 
-      /* ------------------ SEND PUSH NOTIFICATION ------------------ */
+      // ------------------ SEND PUSH NOTIFICATION ------------------
       try {
         const tokens = await AdminToken.find().distinct('token');
 
@@ -97,7 +97,7 @@ router.post(
             tokens
           };
 
-          const response = await admin.messaging().sendEachForMulticast(message);
+          const response = await admin.messaging().sendMulticast(message);
           console.log(`Notification sent to ${response.successCount} admins`);
         } else {
           console.log("No admin tokens found.");
@@ -147,7 +147,7 @@ router.put(
       );
       if (!product) return res.status(404).json({ error: 'Product not found' });
 
-      /* ------------------ LOW STOCK PUSH NOTIFICATION ------------------ */
+      // ------------------ LOW STOCK PUSH NOTIFICATION ------------------
       try {
         const LOW_STOCK_THRESHOLD = 5;
 
@@ -163,8 +163,10 @@ router.put(
               tokens
             };
 
-            const response = await admin.messaging().sendEachForMulticast(message);
+            const response = await admin.messaging().sendMulticast(message);
             console.log(`Low stock notifications sent: ${response.successCount}`);
+          } else {
+            console.log("No admin tokens found for low stock alert.");
           }
         }
       } catch (lowErr) {
@@ -176,24 +178,6 @@ router.put(
     } catch (err) {
       console.error("Update error:", err);
       res.status(500).json({ error: "Error updating product" });
-    }
-  }
-);
-
-/* ======================================================
-   DELETE PRODUCT
-====================================================== */
-router.delete('/:id',
-  authMiddleware,
-  adminMiddleware,
-  async (req, res) => {
-    try {
-      const product = await Product.findByIdAndDelete(req.params.id);
-      if (!product) return res.status(404).json({ error: 'Product not found' });
-
-      res.json({ message: 'Product deleted' });
-    } catch (err) {
-      res.status(500).json({ error: "Server error while deleting product" });
     }
   }
 );
