@@ -52,6 +52,7 @@ async function seedAdmin() {
   }
 }
 
+
 // Start server
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
