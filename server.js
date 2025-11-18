@@ -9,11 +9,9 @@ const User = require('./models/User');
 const adminTokenRoutes = require('./routes/adminToken');
 const notificationsRoute = require('./routes/notifications');
 
-
-
-
-
 const app = express();
+
+// Use the port Render provides, fallback to 5000 for local
 const PORT = process.env.PORT || 5000;
 
 // Enable CORS and JSON body parsing
@@ -23,7 +21,7 @@ app.use(express.json());
 // Serve static files from uploads folder
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-// Default route
+// Health check / default route
 app.get('/', (req, res) => res.send('🛋️ TheComfyCo API is running!'));
 
 // Routes
@@ -32,8 +30,6 @@ app.use('/api/protected', require('./routes/protected'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/admin', adminTokenRoutes);
 app.use('/api', notificationsRoute);
-
-
 
 // Create admin if missing
 async function seedAdmin() {
@@ -57,15 +53,18 @@ async function seedAdmin() {
   }
 }
 
-
-// Start server
-mongoose.connect(process.env.MONGO_URI)
+// Connect to MongoDB and start server
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
   .then(async () => {
     console.log('Connected to MongoDB');
 
     await seedAdmin();
 
-    app.listen(PORT, "0.0.0.0", () => {
+    // Bind to all network interfaces for Render
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT}`);
     });
   })
