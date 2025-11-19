@@ -86,4 +86,9 @@ router.delete('/clear', authMiddleware, async (req, res) => {
   }
 });
 
+router.use((req, res) => {
+  console.log("Unmatched cart route:", req.method, req.originalUrl);
+  res.status(400).send("Bad Request from cart router");
+});
+
 module.exports = router;
