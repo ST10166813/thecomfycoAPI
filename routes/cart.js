@@ -24,7 +24,7 @@ router.post('/add', authMiddleware, async (req, res) => {
     }
 
     // ✅ Update quantity if product already exists
-    const existingItem = cart.items.find(i => i.productId.toString() === productId);
+   const existingItem = cart.items.find(i => i.productId == productId);
     if (existingItem) {
       existingItem.quantity += quantity;
     } else {
@@ -83,6 +83,28 @@ router.delete('/clear', authMiddleware, async (req, res) => {
     res.json({ message: "Cart cleared" });
   } catch (err) {
     res.status(500).json({ error: "Failed to clear cart" });
+  }
+});
+
+/* ================================================
+   UPDATE QUANTITY
+================================================ */
+router.put('/update/:productId', authMiddleware, async (req, res) => {
+  try {
+    const { quantity } = req.body;
+
+    let cart = await Cart.findOne({ userId: req.user.userId });
+    if (!cart) return res.status(404).json({ error: "Cart not found" });
+
+    const item = cart.items.find(i => i.productId.toString() === req.params.productId);
+    if (!item) return res.status(404).json({ error: "Item not found" });
+
+    item.quantity = quantity;
+    await cart.save();
+
+    res.json(cart);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update item" });
   }
 });
 
