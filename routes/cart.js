@@ -7,45 +7,31 @@ const { authMiddleware } = require('../middleware/authMiddleware');
 /* ================================================
    ADD ITEM TO CART
 ================================================ */
-router.post('/add', authMiddleware, async (req, res) => {
-    try {
-        const { productId, quantity } = req.body;
+router.post('/cart/add', authMiddleware, async (req, res) => {
+  try {
+    const { productId, quantity, price, name, image } = req.body;
+    const userId = req.user.userId;
 
-        const product = await Product.findById(productId);
-        if (!product) return res.status(404).json({ error: "Product not found" });
-
-        let cart = await Cart.findOne({ userId: req.user.userId });
-
-        if (!cart) {
-            cart = new Cart({
-                userId: req.user.userId,
-                items: []
-            });
-        }
-
-        const existing = cart.items.find(i => i.productId === productId);
-
-        if (existing) {
-            existing.quantity += quantity;
-        } else {
-            cart.items.push({
-                productId,
-                name: product.name,
-                price: product.price,
-                image: product.images[0],
-                quantity
-            });
-        }
-
-        cart.updatedAt = new Date();
-        await cart.save();
-
-        res.json({ message: "Added to cart", cart });
-    } catch (err) {
-        console.error("Add to cart error:", err);
-        res.status(500).json({ error: "Server error" });
+    let cart = await Cart.findOne({ userId });
+    if (!cart) {
+      cart = new Cart({ userId, items: [] });
     }
+
+    const existingItem = cart.items.find(i => i.productId.toString() === productId);
+    if (existingItem) {
+      existingItem.quantity += quantity;
+    } else {
+      cart.items.push({ productId, quantity, price, name, image });
+    }
+
+    await cart.save();
+    res.json({ message: 'Item added to cart', cart });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to add to cart' });
+  }
 });
+
+
 
 /* ================================================
    GET USER CART
