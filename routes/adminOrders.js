@@ -29,4 +29,10 @@ router.put('/orders/:id/status', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/orders', authMiddleware, async (req, res) => {
+  console.log("Admin orders route hit");
+  const orders = await Order.find().sort({ createdAt: -1 });
+  console.log("Orders found:", orders.length);
+  res.json(orders);
+});
 module.exports = router;

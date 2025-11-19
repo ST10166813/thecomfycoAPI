@@ -8,6 +8,8 @@ require('dotenv').config();
 const User = require('./models/User');
 const adminTokenRoutes = require('./routes/adminToken');
 const notificationsRoute = require('./routes/notifications');
+const adminOrders = require('./routes/adminOrders');
+
 
 const app = express();
 
@@ -33,6 +35,7 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/cart', require('./routes/cart'));
 app.use('/api/payment', require('./routes/payment'));
 app.use('/api/admin', require('./routes/adminOrders'));
+
 
 // Create admin if missing
 async function seedAdmin() {
