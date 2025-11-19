@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const Cart = require('../models/Cart');
+const Order = require('../models/Order'); // ✅ make sure this model exists
 const { authMiddleware } = require('../middleware/authMiddleware');
 
 /* ================================================
-   MOCK PAYMENT + CLEAR CART
+   MOCK PAYMENT + CREATE ORDER + CLEAR CART
 ================================================ */
 router.post('/pay', authMiddleware, async (req, res) => {
     try {
@@ -16,14 +17,23 @@ router.post('/pay', authMiddleware, async (req, res) => {
 
         const total = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-        // Here you would integrate real payment:
-        // Stripe / PayFast / PayPal
+        // ✅ Create new order
+        const newOrder = new Order({
+            userId: req.user.userId,
+            items: cart.items,
+            status: "packing", // default status
+            createdAt: new Date()
+        });
 
+        await newOrder.save();
+
+        // ✅ Clear cart
         await Cart.deleteOne({ userId: req.user.userId });
 
         res.json({
             message: "Payment successful",
-            totalPaid: total
+            totalPaid: total,
+            orderId: newOrder._id
         });
 
     } catch (err) {
