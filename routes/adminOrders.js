@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const Order = require('../models/Order'); // make sure this model exists
+const Order = require('../models/Order');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
 // GET all orders (admin only)
-router.get('/orders', authMiddleware, async (req, res) => {
+router.get('/admin/orders', authMiddleware, async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
     res.json(orders);
@@ -14,11 +14,14 @@ router.get('/orders', authMiddleware, async (req, res) => {
 });
 
 // UPDATE order status
-router.put('/orders/:id/status', authMiddleware, async (req, res) => {
+router.put('/admin/orders/:id/status', authMiddleware, async (req, res) => {
   try {
     const { status } = req.body;
     const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
 
     order.status = status;
     await order.save();
@@ -29,10 +32,4 @@ router.put('/orders/:id/status', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/orders', authMiddleware, async (req, res) => {
-  console.log("Admin orders route hit");
-  const orders = await Order.find().sort({ createdAt: -1 });
-  console.log("Orders found:", orders.length);
-  res.json(orders);
-});
 module.exports = router;
